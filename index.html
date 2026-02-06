@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Sinh Viên - Full CRUD</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        
+        /* Form & Tìm kiếm */
+        .controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .form-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; flex: 1; }
+        button { padding: 8px 15px; cursor: pointer; border: none; border-radius: 4px; color: white; }
+        .btn-add { background-color: #28a745; }
+        .btn-search { background-color: #007bff; }
+        .btn-edit { background-color: #ffc107; color: black; }
+        .btn-delete { background-color: #dc3545; }
+
+        /* Bảng dữ liệu */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- test -->
+    <h2>Quản Lý Danh Sách Sinh Viên</h2>
+
+    <div class="controls">
+        <div class="form-group">
+            <input type="hidden" id="student-id"> <input type="text" id="name" placeholder="Tên sinh viên...">
+            <input type="text" id="phone" placeholder="Số điện thoại...">
+            <input type="text" id="avatar" placeholder="Link ảnh (URL)...">
+            <button id="btn-save" class="btn-add" onclick="handleSave()">Thêm Mới</button>
+        </div>
+
+        <div class="form-group">
+            <input type="text" id="search-input" placeholder="Tìm theo tên..." oninput="searchStudent()">
+        </div>
+    </div>
+
+    <div id="loading">Đang tải dữ liệu...</div>
+    <table id="student-table" style="display: none;">
+        <thead>
+            <tr>
+                <th>Ảnh</th>
+                <th>Họ Tên</th>
+                <th>Điện Thoại</th>
+                <th>Hành Động</th>
+            </tr>
+        </thead>
+        <tbody id="student-list"></tbody>
+    </table>
+</div>
+
+<script>
+    // 1. THAY LINK API CỦA BẠN VÀO ĐÂY
+    const API_URL = "https://6985932a6964f10bf253a58c.mockapi.io/sinhvien";
+    let allStudents = []; // Biến lưu tạm dữ liệu để tìm kiếm
+
+    // 2. Hàm lấy danh sách từ API (Read)
+    async function fetchStudents() {
+        try {
+            const res = await fetch(API_URL);
+            allStudents = await res.json();
+            renderTable(allStudents);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('student-table').style.display = 'table';
+        } catch (error) {
+            alert("Lỗi tải dữ liệu!");
+        }
+    }
+
+    // 3. Hàm hiển thị dữ liệu ra bảng
+    function renderTable(data) {
+        const list = document.getElementById('student-list');
+        list.innerHTML = "";
+        data.forEach(sv => {
+            list.innerHTML += `
+                <tr>
+                    <td><img src="${sv.avatar}" onerror="this.src='https://via.placeholder.com/40'"></td>
+                    <td>${sv.name}</td>
+                    <td>${sv.phone}</td>
+                    <td>
+                        <button class="btn-edit" onclick="editStudent('${sv.id}', '${sv.name}', '${sv.phone}', '${sv.avatar}')">Sửa</button>
+                        <button class="btn-delete" onclick="deleteStudent('${sv.id}')">Xóa</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // 4. Hàm Thêm hoặc Cập Nhật (Create & Update)
+    async function handleSave() {
+        const id = document.getElementById('student-id').value;
+        const name = document.getElementById('name').value;
+        const phone = document.getElementById('phone').value;
+        const avatar = document.getElementById('avatar').value;
+
+        if (!name || !phone) return alert("Vui lòng nhập tên và SĐT!");
+
+        const studentData = { name, phone, avatar };
+        
+        if (id) {
+            // Nếu có ID là đang SỬA
+            await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(studentData)
+            });
+        } else {
+            // Nếu không có ID là THÊM MỚI
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(studentData)
+            });
+        }
+
+        resetForm();
+        fetchStudents();
+    }
+
+    // 5. Hàm Xóa (Delete)
+    async function deleteStudent(id) {
+        if (confirm("Bạn có chắc muốn xóa?")) {
+            await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            fetchStudents();
+        }
+    }
+
+    // 6. Đưa dữ liệu lên form để chuẩn bị sửa
+    function editStudent(id, name, phone, avatar) {
+        document.getElementById('student-id').value = id;
+        document.getElementById('name').value = name;
+        document.getElementById('phone').value = phone;
+        document.getElementById('avatar').value = avatar;
+        document.getElementById('btn-save').innerText = "Cập Nhật";
+        document.getElementById('btn-save').style.backgroundColor = "#ffc107";
+        document.getElementById('btn-save').style.color = "black";
+    }
+
+    // 7. Hàm Tìm Kiếm (Search)
+    function searchStudent() {
+        const keyword = document.getElementById('search-input').value.toLowerCase();
+        const filtered = allStudents.filter(sv => sv.name.toLowerCase().includes(keyword));
+        renderTable(filtered);
+    }
+
+    function resetForm() {
+        document.getElementById('student-id').value = "";
+        document.getElementById('name').value = "";
+        document.getElementById('phone').value = "";
+        document.getElementById('avatar').value = "";
+        document.getElementById('btn-save').innerText = "Thêm Mới";
+        document.getElementById('btn-save').style.backgroundColor = "#28a745";
+        document.getElementById('btn-save').style.color = "white";
+    }
+
+    // Chạy hàm lấy dữ liệu khi vừa mở trang
+    fetchStudents();
+</script>
+
+</body>
+</html>
